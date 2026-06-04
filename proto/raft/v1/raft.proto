@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package raft.v1;
+
+option go_package = "github.com/user/distributed-caching-go/internal/proto/raft/v1;raftv1";
+
+// RaftService handles the two RPCs used for Raft leader election.
+// Every cache node exposes this service so peers can request votes
+// and send heartbeats.
+//
+// NOTE: We use Raft for leader election ONLY — not log replication.
+// AppendEntries carries no log entries. See ADR 0001.
+service RaftService {
+  // RequestVote is sent by a Candidate to ask peers for their vote.
+  // A node grants the vote if:
+  //   1. The candidate's term >= our current term
+  //   2. We haven't already voted for someone else this term
+  rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
+
+  // AppendEntries is used purely as a heartbeat (no log entries).
+  // The Leader sends this every 50ms to prevent followers from timing
+  // out and starting an unnecessary election.
+  rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+}
+
+// --- RequestVote ---
+message RequestVoteRequest {
+  int64  term          = 1; // candidate's current election term
+  string candidate_id  = 2; // who is requesting the vote, e.g. "node2"
+  // last_log_index and last_log_term are always 0 in our implementation
+  // because we don't use log replication (ADR 0001).
+  int64  last_log_index = 3;
+  int64  last_log_term  = 4;
+}
+message RequestVoteResponse {
+  int64 term         = 1; // responder's current term — candidate uses this to update itself
+  bool  vote_granted = 2; // true if the responder voted for the candidate
+}
+
+// --- AppendEntries (heartbeat only) ---
+message AppendEntriesRequest {
+  int64  term      = 1; // leader's current term
+  string leader_id = 2; // who the current leader is, e.g. "node1"
+  // No entries field — we don't replicate cache data via Raft (ADR 0001).
+}
+message AppendEntriesResponse {
+  int64 term    = 1; // responder's current term — leader uses this to detect if it's stale
+  bool  success = 2; // true if the follower accepted the heartbeat
+}

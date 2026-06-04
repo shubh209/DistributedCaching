@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package api.v1;
+
+option go_package = "github.com/user/distributed-caching-go/internal/proto/api/v1;apiv1";
+
+// APIService is called by the Reverse Proxy to forward product catalog
+// requests to the API Layer over gRPC.
+//
+// The reverse proxy uses HTTP externally (client → proxy) but gRPC
+// internally (proxy → API layer) for better performance on the
+// internal network.
+service APIService {
+  // GetProduct fetches a single product by ID.
+  // cache_status in the response is "HIT" or "MISS" — mirrors the
+  // X-Cache header the HTTP handler sets.
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+
+  // ListProducts returns a paginated list of products.
+  // page defaults to 1, page_size defaults to 20, max 100.
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+
+  // UpdateProduct updates a product and triggers cache invalidation
+  // according to the active InvalidationStrategy.
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+}
+
+// --- GetProduct ---
+message GetProductRequest {
+  string id = 1; // product identifier, e.g. "prod-123"
+}
+message GetProductResponse {
+  bytes  product_json  = 1; // JSON-serialised Product struct
+  bool   found         = 2; // false if product doesn't exist in DB (→ 404)
+  string cache_status  = 3; // "HIT" or "MISS" — for X-Cache header and metrics
+}
+
+// --- ListProducts ---
+message ListProductsRequest {
+  int32 page      = 1; // 1-indexed; default 1
+  int32 page_size = 2; // default 20, max 100
+}
+message ListProductsResponse {
+  bytes products_json = 1; // JSON-serialised []Product
+  int32 total_count   = 2; // total matching products (for pagination metadata)
+  int32 page          = 3; // echoed back for client convenience
+  int32 page_size     = 4;
+}
+
+// --- UpdateProduct ---
+message UpdateProductRequest {
+  string id          = 1; // product to update
+  bytes  update_json = 2; // JSON-serialised ProductUpdateRequest (partial update)
+}
+message UpdateProductResponse {
+  bytes product_json = 1; // JSON-serialised updated Product
+  bool  ok           = 2; // false if product not found or update failed
+  string error       = 3; // human-readable error message if ok=false
+}

@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package cache.v1;
+
+option go_package = "github.com/user/distributed-caching-go/internal/proto/cache/v1;cachev1";
+
+// CacheService is implemented by each cache node.
+// The Coordinator routes incoming Get/Set/Delete requests to the correct
+// node using consistent hashing, then calls this service on that node.
+service CacheService {
+  // Get retrieves a value by key.
+  // Returns found=false (not an error) on a cache miss or expired entry.
+  rpc Get(GetRequest) returns (GetResponse);
+
+  // Set stores a key-value pair with a TTL in seconds.
+  // TTL must be in [1, 86400]. TTL=0 is treated as immediately expired.
+  rpc Set(SetRequest) returns (SetResponse);
+
+  // Delete removes a key. Deleting a non-existent key is a no-op.
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+
+  // Health returns whether this node is alive and ready to serve requests.
+  // Used by the coordinator's 500ms health-check probes.
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Stats returns cache metrics for Prometheus scraping.
+  // The eviction_policy label is included so all 4 policies can be
+  // compared on the same Grafana dashboard.
+  rpc Stats(StatsRequest) returns (StatsResponse);
+}
+
+// --- Get ---
+message GetRequest {
+  string key = 1;
+}
+message GetResponse {
+  bytes value = 1;  // serialised payload (JSON-encoded)
+  bool  found = 2;  // false on miss or expiry — never an error for a simple miss
+}
+
+// --- Set ---
+message SetRequest {
+  string key         = 1;
+  bytes  value       = 2;
+  int64  ttl_seconds = 3; // must be in [0, 86400]; 0 = immediately expired
+}
+message SetResponse {
+  bool ok = 1;
+}
+
+// --- Delete ---
+message DeleteRequest {
+  string key = 1;
+}
+message DeleteResponse {
+  bool ok = 1;
+}
+
+// --- Health ---
+message HealthRequest {}
+message HealthResponse {
+  bool   healthy        = 1; // true if node is ready to serve
+  string node_id        = 2; // e.g. "node1"
+  bool   is_coordinator = 3; // true if this node is the current Raft leader
+}
+
+// --- Stats ---
+message StatsRequest {}
+message StatsResponse {
+  int64  hit_count       = 1; // total cache hits since startup
+  int64  miss_count      = 2; // total cache misses since startup
+  int64  eviction_count  = 3; // total evictions since startup
+  int64  entry_count     = 4; // current number of entries in the cache
+  string eviction_policy = 5; // "lru" | "lfu" | "ttl" | "random"
+}
