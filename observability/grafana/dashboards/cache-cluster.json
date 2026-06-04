@@ -1,0 +1,49 @@
+{
+  "title": "Cache Cluster Overview",
+  "uid": "dcg-cache-cluster",
+  "schemaVersion": 38,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cache Hit Rate by Node",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(dcg_cache_hits_total[1m]) / (rate(dcg_cache_hits_total[1m]) + rate(dcg_cache_misses_total[1m]))",
+        "legendFormat": "{{node_id}} ({{eviction_policy}})"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}}
+    },
+    {
+      "id": 2,
+      "title": "Cache Evictions per Second",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(dcg_cache_evictions_total[1m])",
+        "legendFormat": "{{node_id}} ({{eviction_policy}})"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Cache Entry Count",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "dcg_cache_entries",
+        "legendFormat": "{{node_id}}"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Requests Routed per Node",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(dcg_cache_routed_requests_total[1m])",
+        "legendFormat": "{{node_id}}"
+      }]
+    }
+  ]
+}

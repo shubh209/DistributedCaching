@@ -1,0 +1,52 @@
+{
+  "title": "Invalidation Strategy Benchmark",
+  "uid": "dcg-invalidation-bench",
+  "schemaVersion": 38,
+  "refresh": "5s",
+  "description": "Compare TTL, write-through, and write-behind invalidation strategies. Each line represents one strategy.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Write Latency by Strategy (ms)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, rate(dcg_api_invalidation_duration_seconds_bucket[1m])) * 1000",
+        "legendFormat": "{{strategy}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms"}}
+    },
+    {
+      "id": 2,
+      "title": "API Request Latency by Strategy (ms)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, rate(dcg_api_request_duration_seconds_bucket[1m])) * 1000",
+        "legendFormat": "{{invalidation_strategy}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms"}}
+    },
+    {
+      "id": 3,
+      "title": "Cache Hit Rate by Strategy",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(dcg_api_cache_hits_total[1m]) / (rate(dcg_api_cache_hits_total[1m]) + rate(dcg_api_cache_misses_total[1m]))",
+        "legendFormat": "{{invalidation_strategy}}"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}}
+    },
+    {
+      "id": 4,
+      "title": "DB Queries per Second",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "rate(dcg_api_db_queries_total[1m])",
+        "legendFormat": "{{query_type}}"
+      }]
+    }
+  ]
+}

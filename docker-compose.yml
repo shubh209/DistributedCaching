@@ -1,0 +1,151 @@
+services:
+
+  # ── Cache Nodes ──────────────────────────────────────────────────────────────
+  cache-node-1:
+    build: .
+    command: ["/app/cachenode", "--id=node1", "--port=9001", "--metrics-port=9101",
+              "--peers=node2:9002,node3:9003", "--state-dir=/tmp/raft"]
+    ports:
+      - "9001:9001"   # gRPC
+      - "9101:9101"   # HTTP metrics + health
+    environment:
+      EVICTION_POLICY: lru
+      CACHE_CAPACITY: "10000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9101/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  cache-node-2:
+    build: .
+    command: ["/app/cachenode", "--id=node2", "--port=9002", "--metrics-port=9102",
+              "--peers=node1:9001,node3:9003", "--state-dir=/tmp/raft"]
+    ports:
+      - "9002:9002"
+      - "9102:9102"
+    environment:
+      EVICTION_POLICY: lru
+      CACHE_CAPACITY: "10000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9102/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  cache-node-3:
+    build: .
+    command: ["/app/cachenode", "--id=node3", "--port=9003", "--metrics-port=9103",
+              "--peers=node1:9001,node2:9002", "--state-dir=/tmp/raft"]
+    ports:
+      - "9003:9003"
+      - "9103:9103"
+    environment:
+      EVICTION_POLICY: lru
+      CACHE_CAPACITY: "10000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9103/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: products
+      POSTGRES_USER: dcg
+      POSTGRES_PASSWORD: dcg_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dcg -d products"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+    restart: unless-stopped
+
+  # ── API Layer ────────────────────────────────────────────────────────────────
+  api:
+    build: .
+    command: ["/app/api"]
+    ports:
+      - "8081:8081"   # HTTP + metrics
+    environment:
+      PORT: "8081"
+      INVALIDATION_STRATEGY: write-through
+      CACHE_CLUSTER_ADDR: "cache-node-1:9001,cache-node-2:9002,cache-node-3:9003"
+      DB_DSN: "postgres://dcg:dcg_secret@postgres:5432/products?sslmode=disable"
+      EVICTION_POLICY: lru
+      CACHE_CAPACITY: "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      cache-node-1:
+        condition: service_healthy
+      cache-node-2:
+        condition: service_healthy
+      cache-node-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Reverse Proxy ─────────────────────────────────────────────────────────────
+  proxy:
+    build: .
+    command: ["/app/proxy", "--port=8080", "--upstream=http://api:8081"]
+    ports:
+      - "8080:8080"   # External HTTP (client entry point)
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Prometheus ────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - cache-node-1
+      - cache-node-2
+      - cache-node-3
+      - api
+      - proxy
+    restart: unless-stopped
+
+  # ── Grafana ───────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      # Anonymous access so you can open Grafana without logging in
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  pgdata:   # persistent PostgreSQL data across container restarts

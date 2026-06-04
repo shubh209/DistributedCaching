@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 5s      # scrape every 5 seconds
+  evaluation_interval: 5s  # evaluate rules every 5 seconds
+
+scrape_configs:
+  - job_name: "cache-node-1"
+    static_configs:
+      - targets: ["cache-node-1:9101"]
+
+  - job_name: "cache-node-2"
+    static_configs:
+      - targets: ["cache-node-2:9102"]
+
+  - job_name: "cache-node-3"
+    static_configs:
+      - targets: ["cache-node-3:9103"]
+
+  - job_name: "api"
+    static_configs:
+      - targets: ["api:8181"]
+
+  - job_name: "proxy"
+    static_configs:
+      - targets: ["proxy:8180"]
