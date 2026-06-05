@@ -74,3 +74,12 @@ The intended implementation sequence:
 4. Reverse proxy (full HTTP response caching)
 5. Observability (Prometheus + Grafana instrumentation across all layers)
 
+
+### LLM Prefix Cache
+A new module within the same repo (`internal/llm/`) that extends the distributed cache to the LLM inference domain. Caches prefix KV state as hash + metadata (not real tensors) — stores a `PrefixCacheEntry` containing the SHA-256 hash of a token sequence, token count, simulated FLOP cost (based on real transformer math), model parameters, and hit count. On a cache hit, reports TFLOPs saved and equivalent dollar cost at current GPU pricing. Demonstrates how prefix caching reduces LLM inference compute cost empirically.
+
+### Prefix Caching
+The technique of caching the KV (Key-Value) attention state for a repeated token sequence prefix. When multiple LLM requests share the same system prompt, the expensive attention computation for that prefix is performed once and cached — subsequent requests with the same prefix get a cache HIT and skip that computation entirely.
+
+### FLOP Savings
+The metric used to quantify compute saved by a prefix cache hit. Computed as: `2 × num_layers × num_heads × seq_len² × head_dim`. Reported in TFLOPs and converted to dollar cost at H100 GPU pricing (~$2.50/hr, ~312 TFLOPS/hr).
