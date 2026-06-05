@@ -75,7 +75,7 @@ func (db *DB) Close() {
 	db.pool.Close()
 }
 
-// migrate runs the schema migration inline.
+// migrate runs the schema migration and seeds initial data.
 // In a production system you'd use a migration tool like golang-migrate.
 // For this sandbox, embedding the SQL keeps things simple.
 func (db *DB) migrate(ctx context.Context) error {
@@ -90,12 +90,45 @@ func (db *DB) migrate(ctx context.Context) error {
 		updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);
 	CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+
+	-- Seed sample products so the sandbox has data immediately on first run.
+	-- ON CONFLICT DO NOTHING makes this idempotent — safe to run on every startup.
+	INSERT INTO products (id, name, description, price_usd, category) VALUES
+		('prod-001', 'Wireless Headphones',   'Noise-cancelling over-ear headphones', 79.99,  'electronics'),
+		('prod-002', 'Mechanical Keyboard',   'TKL layout with Cherry MX switches',   129.99, 'electronics'),
+		('prod-003', 'Standing Desk Mat',     'Anti-fatigue mat for standing desks',  49.99,  'office'),
+		('prod-004', 'USB-C Hub',             '7-in-1 USB-C hub with HDMI and PD',    39.99,  'electronics'),
+		('prod-005', 'Notebook (A5)',         'Dotted grid, 200 pages',               12.99,  'office'),
+		('prod-006', 'Laptop Backpack',       'Water-resistant 30L backpack',         89.99,  'bags'),
+		('prod-007', 'Monitor Light Bar',     'Screenbar clip-on monitor light',      59.99,  'electronics'),
+		('prod-008', 'Cable Management Box', 'Hide power strips and cables cleanly',  24.99,  'office'),
+		('prod-009', 'Webcam 1080p',          'Autofocus webcam with privacy cover',  69.99,  'electronics'),
+		('prod-010', 'Desk Plant (Small)',    'Low-maintenance succulent',             14.99,  'decor')
+	ON CONFLICT (id) DO NOTHING;
 	`
 	_, err := db.pool.Exec(ctx, sql)
 	return err
 }
 
-// GetProduct fetches a single product by ID.
+// CreateProduct inserts a new product into the database.
+// Returns the created product with its timestamps populated.
+func (db *DB) CreateProduct(ctx context.Context, p Product) (*Product, error) {
+	row := db.pool.QueryRow(ctx, `
+		INSERT INTO products (id, name, description, price_usd, category)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, name, description, price_usd, category, created_at, updated_at
+	`, p.ID, p.Name, p.Description, p.PriceUSD, p.Category)
+
+	created := &Product{}
+	err := row.Scan(&created.ID, &created.Name, &created.Description, &created.PriceUSD,
+		&created.Category, &created.CreatedAt, &created.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("db: create product: %w", err)
+	}
+	return created, nil
+}
+
+
 // Returns ErrNotFound if the product doesn't exist — the API maps this to 404.
 func (db *DB) GetProduct(ctx context.Context, id string) (*Product, error) {
 	row := db.pool.QueryRow(ctx, `

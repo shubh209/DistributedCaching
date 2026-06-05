@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/user/distributed-caching-go/internal/db"
 )
@@ -94,7 +95,49 @@ func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateProduct handles PUT /products/{id}
+// CreateProduct handles POST /products
+//
+// Status codes:
+//   - 201 — product created and returned
+//   - 400 — invalid request body or missing required fields
+//   - 409 — product with this ID already exists
+//   - 503 — database unavailable
+func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+	var p Product
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if p.ID == "" || p.Name == "" {
+		writeError(w, http.StatusBadRequest, "id and name are required")
+		return
+	}
+
+	dbProduct, err := h.cacheAside.db.CreateProduct(r.Context(), db.Product{
+		ID:          p.ID,
+		Name:        p.Name,
+		Description: p.Description,
+		PriceUSD:    p.PriceUSD,
+		Category:    p.Category,
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			writeError(w, http.StatusConflict, "product with this ID already exists")
+			return
+		}
+		writeError(w, http.StatusServiceUnavailable, "service temporarily unavailable")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, dbToAPIProduct(dbProduct))
+}
+
+// isUniqueViolation returns true if the error is a PostgreSQL unique constraint violation.
+func isUniqueViolation(err error) bool {
+	return err != nil && (strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "unique"))
+}
+
+
 //
 // Status codes:
 //   - 200 — product updated and returned

@@ -209,6 +209,27 @@ func TestProxy_DifferentQueryStrings_SeparateCacheEntries(t *testing.T) {
 
 // --- parseCacheControl tests ---
 
+func TestProxy_404Response_NotCached(t *testing.T) {
+	callCount := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		w.Header().Set("Cache-Control", "max-age=300")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"not found"}`))
+	}))
+	defer upstream.Close()
+
+	p := NewProxy(upstream.URL)
+
+	// Both requests should hit upstream — 404s must never be cached
+	p.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/products/missing", nil))
+	p.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/products/missing", nil))
+
+	if callCount != 2 {
+		t.Errorf("404 responses must not be cached — expected 2 upstream calls, got %d", callCount)
+	}
+}
+
 func TestParseCacheControl_MaxAge_ReturnsTTL(t *testing.T) {
 	shouldCache, ttl := parseCacheControl("max-age=60")
 	if !shouldCache {

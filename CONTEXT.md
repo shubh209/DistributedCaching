@@ -59,7 +59,14 @@ Mixed: HTTP/REST for external-facing communication (client → reverse proxy →
 ### Project Structure
 A single Go module (one `go.mod` at the root) with packages per service under `internal/`. Shared types (interfaces, metrics, config) live in shared packages. All services are orchestrated via Docker Compose.
 
-### Build Order
+### Dashboard
+A single-page web interface served at `GET /` by the Reverse Proxy. Allows a developer to list products, view a single product, add a product, and update a product's price. Makes API calls to the same origin (`/products/*`) so no CORS configuration is needed. Displays `X-Cache` status (HIT/MISS) prominently for each product fetch, and shows cluster routing information via the Cache Debug endpoint.
+
+### Cache Debug Endpoint
+`GET /cache/debug/{key}` — a diagnostic endpoint on the API layer that returns the full routing decision for a cache key: which node owns it (per consistent hashing), whether the entry is currently in cache on that node, and the TTL remaining. Used by the Dashboard to visualise which node holds a product and what happens to the cluster state when a product is updated.
+
+### Cluster Status Endpoint
+`GET /cluster/status` — an aggregation endpoint on the API layer that queries all three cache nodes' health endpoints and returns a single JSON response with each node's status (healthy/unhealthy), entry count, eviction count, and whether it is the current coordinator. The Dashboard polls this every 2 seconds to show live cluster state.
 The intended implementation sequence:
 1. In-memory cache core (eviction policies: LRU, LFU, TTL, Random + consistent hashing)
 2. Cache cluster + Raft leader election (3-node coordinator)

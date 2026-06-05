@@ -5,20 +5,25 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/user/distributed-caching-go/internal/cluster"
 	"github.com/user/distributed-caching-go/internal/db"
 	"github.com/user/distributed-caching-go/internal/shared"
 )
 
+// ensure cluster is used (DebugHandler uses it)
+var _ = cluster.NewRing
+
 // Server is the HTTP API server for the product catalog.
 type Server struct {
-	handler *Handler
-	httpSrv *http.Server
+	handler      *Handler
+	debugHandler *DebugHandler
+	httpSrv      *http.Server
 }
 
 // NewServer creates and configures the API HTTP server.
 // It wires together the cache, database, and invalidation strategy,
 // then registers all routes.
-func NewServer(port int, cache shared.Cache, database *db.DB, strategy shared.InvalidationStrategy) *Server {
+func NewServer(port int, cache shared.Cache, database *db.DB, strategy shared.InvalidationStrategy, debugH *DebugHandler) *Server {
 	ca := NewCacheAside(cache, database, strategy)
 	h := NewHandler(ca)
 
@@ -27,7 +32,14 @@ func NewServer(port int, cache shared.Cache, database *db.DB, strategy shared.In
 	// Product catalog routes (Go 1.22+ pattern matching)
 	mux.HandleFunc("GET /products/{id}", h.GetProduct)
 	mux.HandleFunc("GET /products", h.ListProducts)
+	mux.HandleFunc("POST /products", h.CreateProduct)
 	mux.HandleFunc("PUT /products/{id}", h.UpdateProduct)
+
+	// Debug / dashboard endpoints
+	if debugH != nil {
+		mux.HandleFunc("GET /cache/debug/{key}", debugH.CacheDebug)
+		mux.HandleFunc("GET /cluster/status", debugH.ClusterStatus)
+	}
 
 	// Health and metrics endpoints
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +54,8 @@ func NewServer(port int, cache shared.Cache, database *db.DB, strategy shared.In
 	})
 
 	return &Server{
-		handler: h,
+		handler:      h,
+		debugHandler: debugH,
 		httpSrv: &http.Server{
 			Addr:    fmt.Sprintf(":%d", port),
 			Handler: mux,

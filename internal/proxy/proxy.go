@@ -76,8 +76,12 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cacheControl := upstreamResp.Header.Get("Cache-Control")
 	shouldCache, ttl := parseCacheControl(cacheControl)
 
-	if shouldCache && upstreamResp.StatusCode < 500 {
-		// Don't cache error responses from upstream — only cache successful ones
+	if shouldCache && upstreamResp.StatusCode >= 200 && upstreamResp.StatusCode < 300 {
+		// Only cache successful 2xx responses.
+		// Never cache 404, 500, 503 etc — those are transient states
+		// (a product might not exist yet but get created later, a server
+		// might be temporarily down). Caching errors would serve stale
+		// error responses long after the underlying issue is resolved.
 		cached := &CachedHTTPResponse{
 			StatusCode: upstreamResp.StatusCode,
 			Headers:    upstreamResp.Header.Clone(),
@@ -181,20 +185,26 @@ func (p *Proxy) Store() *ResponseStore {
 func (p *Proxy) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// All product catalog traffic passes through the proxy handler
-	mux.Handle("/", p)
-
-	// Health check — proxy itself is healthy if it can respond
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Health check and metrics are handled directly — not proxied
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"healthy":true,"cached_entries":%d}`, p.store.Len())
 	})
 
-	// Metrics stub — wired to Prometheus in Task 15
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintf(w, "# proxy metrics — prometheus instrumentation added in task 15\n")
 		fmt.Fprintf(w, "proxy_cached_entries %d\n", p.store.Len())
+	})
+
+	// Catch-all: serve dashboard at /, proxy everything else
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write([]byte(dashboardHTML))
+			return
+		}
+		p.ServeHTTP(w, r)
 	})
 
 	return mux
