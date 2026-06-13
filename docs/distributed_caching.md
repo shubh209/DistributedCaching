@@ -154,11 +154,11 @@ Metric type: ESTIMATE
 ### AI Engineer
 
 **AI-1 — LOCKED**
-Built an LLM prefix caching simulation in Go with AI architecture across 6 open source models as part of a production system demonstrating 92% compute cost reduction to help AI teams show stakeholders exactly how much money repeating the same AI work wastes every day.
-Keywords: [Go, LLMs, AI architecture, production systems]
+Built a prefix caching simulation in Python using NumPy and Git comparing compute cost across open source models including Llama, Mistral, Qwen, and DeepSeek to help AI teams understand how model size affects infrastructure spend before choosing a model for production.
+Keywords: [Python, NumPy, Git, LLMs]
 Metric type: MEASURED
 
 **AI-2 — LOCKED**
-Built a RAG pipeline simulation in Go with LangChain style document retrieval as part of a production system to help AI teams influence stakeholders to make smarter spending decisions on AI features before committing budget.
-Keywords: [Go, RAG, LangChain, production systems]
-Metric type: ESTIMATE (planned feature)
+Built a RAG pipeline simulation in Python with LangChain style document retrieval and NumPy showing 93.9% compute reduction and $420 saved per month at 1M daily requests to help AI teams influence stakeholders to make smarter spending decisions on AI features before committing budget.
+Keywords: [Python, RAG, LangChain, NumPy]
+Metric type: MEASURED
