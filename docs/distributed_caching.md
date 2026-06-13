@@ -129,3 +129,36 @@ Initial implementation cached any non-5xx response. Discovered during testing th
 **AI / ML Systems:** LLM inference optimization, KV cache, prefix caching, transformer architecture, FLOP analysis, AI tools, open-source models (Llama, Mistral, Mixtral, Qwen, DeepSeek), Hugging Face, compute cost reduction, RAG pipeline, token compute
 
 **Recruiter-targeted:** Large-scale backend, high-throughput systems, fault-tolerant architecture, empirical benchmarking, system design, cross-functional impact (engineering + product + finance)
+
+---
+
+## Locked Resume Bullets
+
+### Backend SWE
+
+**B1 — LOCKED**
+Built a 3-node cache cluster in Go with gRPC, PostgreSQL, and Docker achieving 10,600 reads per second to understand how engineering teams keep their product fast and available during the busiest hours of the day so companies stop losing revenue when traffic peaks.
+Keywords: [Go, gRPC, PostgreSQL, Docker]
+Metric type: MEASURED
+
+**B2 — LOCKED**
+Built a testing system using REST API, SQL, Go, and CI/CD to handle thousands of simultaneous user requests on the product to ensure that companies never serve corrupted product data to customers during peak traffic.
+Keywords: [REST API, SQL, Go, CI/CD]
+Metric type: MEASURED
+
+**B3 — LOCKED**
+Configured Prometheus and Grafana dashboards with Git across all servers to give operations teams a live view of system performance so they can present real data to stakeholders and influence infrastructure investment decisions.
+Keywords: [Prometheus, Grafana, Git]
+Metric type: ESTIMATE
+
+### AI Engineer
+
+**AI-1 — LOCKED**
+Built an LLM prefix caching simulation in Go with AI architecture across 6 open source models as part of a production system demonstrating 92% compute cost reduction to help AI teams show stakeholders exactly how much money repeating the same AI work wastes every day.
+Keywords: [Go, LLMs, AI architecture, production systems]
+Metric type: MEASURED
+
+**AI-2 — LOCKED**
+Built a RAG pipeline simulation in Go with LangChain style document retrieval as part of a production system to help AI teams influence stakeholders to make smarter spending decisions on AI features before committing budget.
+Keywords: [Go, RAG, LangChain, production systems]
+Metric type: ESTIMATE (planned feature)
