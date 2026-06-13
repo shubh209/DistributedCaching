@@ -1,0 +1,10 @@
+{
+  "id": "affaan-m-ecc-skills-prompt-optimizer-skill-md",
+  "name": "prompt-optimizer",
+  "github_url": "https://github.com/affaan-m/ECC/tree/main/skills/prompt-optimizer",
+  "installed_at": "2026-06-07T23:05:40.499Z",
+  "owner": "affaan-m",
+  "repo": "ECC",
+  "branch": "main",
+  "skill_path": "skills/prompt-optimizer"
+}
