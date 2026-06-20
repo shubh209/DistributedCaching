@@ -1,3 +1,5 @@
+[![CI](https://github.com/shubh209/DistributedCaching/actions/workflows/ci.yml/badge.svg)](https://github.com/shubh209/DistributedCaching/actions/workflows/ci.yml)
+
 # Distributed Caching — Go Learning Sandbox
 
 A locally runnable Go sandbox that demonstrates caching at every layer of a distributed system. The goal is empirical learning: observe, benchmark, and compare caching strategies by watching live Prometheus/Grafana metrics while the system runs under real load.
@@ -17,6 +19,26 @@ curl http://localhost:8080/products/prod-001
 # Run the eviction policy benchmark
 docker compose run --rm benchmark --mode=eviction
 ```
+
+## Python LLM Simulation
+
+A standalone Python CLI that simulates LLM prefix caching and RAG pipeline costs using real transformer FLOP math. No running services needed — it works independently of the Go stack.
+
+```bash
+cd python
+pip install -e ".[dev]"
+
+# Compare cost across all 6 models (Llama, Mistral, Mixtral, Qwen, DeepSeek)
+python -m llmsim --mode=all-models
+
+# Run 5 pre-built business scenarios (Customer Service Bot, Code Assistant, etc.)
+python -m llmsim --mode=prefix-cache
+
+# RAG pipeline simulation with monthly cost projection
+python -m llmsim --mode=rag
+```
+
+Headline result: **93.9% compute reduction** and **$420/month saved** at 1M daily requests on Llama-3-70B.
 
 ## Layer Status
 

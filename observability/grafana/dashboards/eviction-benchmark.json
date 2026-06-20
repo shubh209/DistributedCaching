@@ -47,6 +47,43 @@
         "legendFormat": "{{eviction_policy}}"
       }],
       "fieldConfig": {"defaults": {"unit": "ms"}}
+    },
+    {
+      "id": 5,
+      "title": "Hit Rate Comparison by Policy (current)",
+      "description": "Side-by-side hit rate for each eviction policy at the current moment. Use this to compare policy effectiveness at a glance.",
+      "type": "bargauge",
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "expr": "rate(dcg_cache_hits_total[5m]) / (rate(dcg_cache_hits_total[5m]) + rate(dcg_cache_misses_total[5m]))",
+          "legendFormat": "{{eviction_policy}}",
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0.8},
+              {"color": "green", "value": 0.95}
+            ]
+          }
+        }
+      }
     }
   ]
 }

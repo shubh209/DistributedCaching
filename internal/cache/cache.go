@@ -152,10 +152,27 @@ func (c *InMemoryCache) Delete(_ context.Context, key string) error {
 	return nil
 }
 
-// Len returns the current number of entries in the cache.
-// Note: this includes entries that may have expired but haven't been lazily cleaned up yet.
+// Len returns the number of entries currently in the cache, including any
+// that have expired but not yet been lazily cleaned up. Use LiveLen for an
+// accurate count of non-expired entries.
 func (c *InMemoryCache) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.entries)
+}
+
+// LiveLen returns the number of entries that are present and not yet expired.
+// It scans all entries under a read lock, so it is O(n). Use Len when an
+// approximate count is sufficient (e.g. metrics, logging).
+func (c *InMemoryCache) LiveLen() int {
+	now := time.Now()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	count := 0
+	for _, e := range c.entries {
+		if !e.IsExpired(now) {
+			count++
+		}
+	}
+	return count
 }
